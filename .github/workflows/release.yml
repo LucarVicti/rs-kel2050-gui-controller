@@ -18,7 +18,10 @@ jobs:
             artifact: rs_kel2050_gui_windows-portable.zip
             platform_name: windows
           - os: macos-latest
-            artifact: rs_kel2050_gui_macos.zip
+            artifact: rs_kel2050_gui_macos_arm64.zip
+            platform_name: macos
+          - os: macos-15-intel
+            artifact: rs_kel2050_gui_macos_intel.zip
             platform_name: macos
           - os: ubuntu-latest
             artifact: rs_kel2050_gui_linux.zip

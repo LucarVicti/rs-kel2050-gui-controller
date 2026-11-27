@@ -104,7 +104,7 @@ Nella cartella `release/` (e nella sezione [Releases](../../releases) del reposi
 - `rs_kel2050_gui.exe` e `rs_kel2050_gui_windows-portable.zip` (Windows)
 - `rs_kel2050_gui_linux.zip` (Linux x86_64)
 - `rs_kel2050_gui_python.zip` (sorgenti Python multipiattaforma)
-- **macOS (`rs_kel2050_gui_macos.zip`):** il repository include il workflow GitHub Actions (`.github/workflows/release.yml`) che compila automaticamente i pacchetti nativi per **Windows**, **macOS** e **Linux** al push di un tag `v*` (o manualmente dalla tab *Actions* di GitHub). Su macOS è inoltre disponibile lo script `./build_macos.sh`.
+- **macOS (`rs_kel2050_gui_macos_arm64.zip` per Apple Silicon e `rs_kel2050_gui_macos_intel.zip` per Intel):** il repository include il workflow GitHub Actions (`.github/workflows/release.yml`) che compila automaticamente i pacchetti nativi per **Windows**, **macOS** (sia Apple Silicon `arm64` che Intel `x86_64`) e **Linux** al push di un tag `v*` (o manualmente dalla tab *Actions* di GitHub). Su macOS è inoltre disponibile lo script `./build_macos.sh`.
 
 ## Guida rapida
 
