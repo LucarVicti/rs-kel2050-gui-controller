@@ -1,0 +1,90 @@
+name: Build & Release Cross-Platform Binaries
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            artifact: rs_kel2050_gui_windows-portable.zip
+            platform_name: windows
+          - os: macos-latest
+            artifact: rs_kel2050_gui_macos.zip
+            platform_name: macos
+          - os: ubuntu-latest
+            artifact: rs_kel2050_gui_linux.zip
+            platform_name: linux
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Linux Tkinter dependencies
+        if: matrix.platform_name == 'linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y python3-tk
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt pyinstaller
+
+      - name: Build Windows executable
+        if: matrix.platform_name == 'windows'
+        shell: pwsh
+        run: |
+          pyinstaller --noconfirm --onefile --windowed --name rs_kel2050_gui --icon icon.ico --add-data "logo.png;." --add-data "icon.png;." rs_kel2050_gui.py
+          Compress-Archive -Path dist/rs_kel2050_gui.exe, README.md, LICENSE -DestinationPath ${{ matrix.artifact }} -Force
+
+      - name: Build macOS app bundle
+        if: matrix.platform_name == 'macos'
+        run: |
+          pyinstaller --noconfirm --windowed --name rs_kel2050_gui --icon icon.png --add-data "logo.png:." --add-data "icon.png:." rs_kel2050_gui.py
+          cd dist
+          zip -r ../${{ matrix.artifact }} rs_kel2050_gui.app
+
+      - name: Build Linux executable
+        if: matrix.platform_name == 'linux'
+        run: |
+          pyinstaller --noconfirm --onefile --windowed --name rs_kel2050_gui --add-data "logo.png:." --add-data "icon.png:." rs_kel2050_gui.py
+          cd dist
+          zip -r ../${{ matrix.artifact }} rs_kel2050_gui
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: ${{ matrix.artifact }}
+
+  release:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/*
