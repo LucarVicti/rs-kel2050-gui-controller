@@ -15,16 +15,20 @@ jobs:
       matrix:
         include:
           - os: windows-latest
-            artifact: rs_kel2050_gui_windows-portable.zip
+            artifact_id: windows
             platform_name: windows
           - os: macos-latest
-            artifact: rs_kel2050_gui_macos_arm64.zip
+            artifact_id: macos-arm64
+            zip_name: rs_kel2050_gui_macos_arm64.zip
+            dmg_name: rs_kel2050_gui_macos_arm64.dmg
             platform_name: macos
           - os: macos-15-intel
-            artifact: rs_kel2050_gui_macos_intel.zip
+            artifact_id: macos-intel
+            zip_name: rs_kel2050_gui_macos_intel.zip
+            dmg_name: rs_kel2050_gui_macos_intel.dmg
             platform_name: macos
           - os: ubuntu-latest
-            artifact: rs_kel2050_gui_linux.zip
+            artifact_id: linux
             platform_name: linux
 
     runs-on: ${{ matrix.os }}
@@ -49,32 +53,102 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt pyinstaller
 
-      - name: Build Windows executable
+      - name: Build Windows portable and installer
         if: matrix.platform_name == 'windows'
         shell: pwsh
         run: |
+          New-Item -ItemType Directory -Force -Path out | Out-Null
           pyinstaller --noconfirm --onefile --windowed --name rs_kel2050_gui --icon icon.ico --add-data "logo.png;." --add-data "icon.png;." rs_kel2050_gui.py
-          Compress-Archive -Path dist/rs_kel2050_gui.exe, README.md, LICENSE -DestinationPath ${{ matrix.artifact }} -Force
+          Compress-Archive -Path dist/rs_kel2050_gui.exe, README.md, LICENSE -DestinationPath out/rs_kel2050_gui_windows-portable.zip -Force
 
-      - name: Build macOS app bundle
+          $refName = "${{ github.ref_name }}"
+          if ($refName -match '^v?(\d+\.\d+\.\d+)') {
+            $appVersion = $Matches[1]
+          } else {
+            $appVersion = "1.0.0"
+          }
+
+          $iscc = Get-Command ISCC.exe -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source
+          if (-not $iscc) {
+            $defaultIscc = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
+            if (Test-Path $defaultIscc) {
+              $iscc = $defaultIscc
+            } else {
+              choco install innosetup -y --no-progress
+              $iscc = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
+            }
+          }
+
+          & $iscc "/DAppVersion=$appVersion" installer\windows\setup.iss
+          Copy-Item dist\installer\rs_kel2050_gui_windows_setup.exe out\ -Force
+
+      - name: Build macOS app bundle and DMG
         if: matrix.platform_name == 'macos'
         run: |
+          mkdir -p out
           pyinstaller --noconfirm --windowed --name rs_kel2050_gui --icon icon.png --add-data "logo.png:." --add-data "icon.png:." rs_kel2050_gui.py
-          cd dist
-          zip -r ../${{ matrix.artifact }} rs_kel2050_gui.app
+          (cd dist && zip -r "../out/${{ matrix.zip_name }}" rs_kel2050_gui.app)
 
-      - name: Build Linux executable
+          mkdir -p dmg_staging
+          cp -R dist/rs_kel2050_gui.app dmg_staging/
+          ln -s /Applications dmg_staging/Applications
+          hdiutil create -volname "RS-KEL2050 GUI" -srcfolder dmg_staging -ov -format UDZO "out/${{ matrix.dmg_name }}"
+          rm -rf dmg_staging
+
+      - name: Build Linux portable and DEB package
         if: matrix.platform_name == 'linux'
         run: |
+          mkdir -p out
           pyinstaller --noconfirm --onefile --windowed --name rs_kel2050_gui --add-data "logo.png:." --add-data "icon.png:." rs_kel2050_gui.py
-          cd dist
-          zip -r ../${{ matrix.artifact }} rs_kel2050_gui
+          (cd dist && zip -r ../out/rs_kel2050_gui_linux.zip rs_kel2050_gui)
 
-      - name: Upload build artifact
+          RAW_VER="${{ github.ref_name }}"
+          DEB_VER=$(echo "$RAW_VER" | sed -n 's/^v\?\([0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\).*/\1/p')
+          if [ -z "$DEB_VER" ]; then
+            DEB_VER="1.0.0"
+          fi
+
+          mkdir -p deb_pkg/DEBIAN
+          mkdir -p deb_pkg/usr/local/bin
+          mkdir -p deb_pkg/usr/share/icons/hicolor/256x256/apps
+          mkdir -p deb_pkg/usr/share/applications
+
+          cp dist/rs_kel2050_gui deb_pkg/usr/local/bin/rs_kel2050_gui
+          chmod 0755 deb_pkg/usr/local/bin/rs_kel2050_gui
+
+          cp icon.png deb_pkg/usr/share/icons/hicolor/256x256/apps/rs_kel2050_gui.png
+          chmod 0644 deb_pkg/usr/share/icons/hicolor/256x256/apps/rs_kel2050_gui.png
+
+          printf '%s\n' \
+            '[Desktop Entry]' \
+            'Type=Application' \
+            'Name=RS-KEL2050 GUI Controller' \
+            'Comment=Remote controller for RS PRO RS-KEL2050 DC Electronic Load' \
+            'Exec=/usr/local/bin/rs_kel2050_gui' \
+            'Icon=rs_kel2050_gui' \
+            'Terminal=false' \
+            'Categories=Utility;Electronics;' \
+            > deb_pkg/usr/share/applications/rs_kel2050_gui.desktop
+          chmod 0644 deb_pkg/usr/share/applications/rs_kel2050_gui.desktop
+
+          printf '%s\n' \
+            'Package: rs-kel2050-gui' \
+            "Version: ${DEB_VER}" \
+            'Section: utils' \
+            'Priority: optional' \
+            'Architecture: amd64' \
+            'Maintainer: LucarVicti <LucarVicti@users.noreply.github.com>' \
+            'Description: Cross-platform GUI remote controller for RS PRO RS-KEL2050 DC electronic load' \
+            > deb_pkg/DEBIAN/control
+
+          dpkg-deb --build --root-owner-group deb_pkg out/rs_kel2050_gui_linux_amd64.deb
+          rm -rf deb_pkg
+
+      - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.artifact }}
-          path: ${{ matrix.artifact }}
+          name: build-${{ matrix.artifact_id }}
+          path: out/*
 
   release:
     needs: build

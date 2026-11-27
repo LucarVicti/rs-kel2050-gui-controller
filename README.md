@@ -99,12 +99,15 @@ Console SCPI manuale con log TX/RX dedicato ai comandi utente (il polling di mon
 
 ## Releases & Build eseguibili
 
-Nella cartella `release/` (e nella sezione [Releases](../../releases) del repository) sono disponibili i pacchetti pronti all'uso:
+Nella cartella `release/` (e nella sezione [Releases](../../releases) del repository) sono disponibili sia i pacchetti portatili che gli installer nativi pronti all'uso:
 
-- `rs_kel2050_gui.exe` e `rs_kel2050_gui_windows-portable.zip` (Windows)
-- `rs_kel2050_gui_linux.zip` (Linux x86_64)
-- `rs_kel2050_gui_python.zip` (sorgenti Python multipiattaforma)
-- **macOS (`rs_kel2050_gui_macos_arm64.zip` per Apple Silicon e `rs_kel2050_gui_macos_intel.zip` per Intel):** il repository include il workflow GitHub Actions (`.github/workflows/release.yml`) che compila automaticamente i pacchetti nativi per **Windows**, **macOS** (sia Apple Silicon `arm64` che Intel `x86_64`) e **Linux** al push di un tag `v*` (o manualmente dalla tab *Actions* di GitHub). Su macOS è inoltre disponibile lo script `./build_macos.sh`.
+- **Windows:** `rs_kel2050_gui_windows_setup.exe` (installer guidato) e `rs_kel2050_gui_windows-portable.zip` (portatile)
+- **macOS Apple Silicon (`arm64`):** `rs_kel2050_gui_macos_arm64.dmg` (immagine disco drag & drop) e `rs_kel2050_gui_macos_arm64.zip`
+- **macOS Intel (`x86_64`):** `rs_kel2050_gui_macos_intel.dmg` (immagine disco drag & drop) e `rs_kel2050_gui_macos_intel.zip`
+- **Linux (`amd64` / `x86_64`):** `rs_kel2050_gui_linux_amd64.deb` (pacchetto Debian/Ubuntu) e `rs_kel2050_gui_linux.zip` (portatile)
+- **Sorgenti Python multipiattaforma:** `rs_kel2050_gui_python.zip`
+
+Il repository include il workflow GitHub Actions (`.github/workflows/release.yml`) che compila automaticamente tutti i pacchetti e gli installer al push di un tag `v*` (o manualmente dalla tab *Actions* di GitHub). Su macOS è inoltre disponibile lo script `./build_macos.sh`.
 
 ## Guida rapida
 
